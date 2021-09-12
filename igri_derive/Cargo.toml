@@ -1,0 +1,16 @@
+[package]
+name = "igri_derive"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[features]
+dummy = []
+
+[dependencies]
+proc-macro2 = "1.0.29"
+syn = "1.0.76"
+quote = "1.0.9"
+darling = "0.13.0"

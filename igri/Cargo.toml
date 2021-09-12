@@ -1,0 +1,10 @@
+[package]
+name = "igri"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+imgui = { git = "https://github.com/sanbox-irl/imgui-rs", branch = "string" }
+igri_derive = { path = "../igri_derive" }
+paste = "1.0.5"
+
