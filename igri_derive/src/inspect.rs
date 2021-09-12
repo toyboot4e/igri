@@ -142,9 +142,10 @@ fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenS
 
 /// Inspect the variant's fields
 fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
-    let ty_ident = &args.ident;
     let inspect = inspect_path();
 
+    // TODO: select variant with combo + fields
+    // TODO: skip
     let matchers = variants.iter().map(|v| {
         let v_ident = &v.ident;
 
@@ -165,7 +166,7 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
                     .map(|f| format!("{}", f.ident.as_ref().unwrap()));
 
                 quote! {
-                    #ty_ident::#v_ident { #(#f_idents),* } => {
+                    Self::#v_ident { #(#f_idents),* } => {
                         #(
                             #inspect::inspect(#f_idents, ui, #labels);
                         )*
@@ -176,10 +177,11 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
                 let f_idents = (0..v.fields.len())
                     .map(|i| format_ident!("f{}", i))
                     .collect::<Vec<_>>();
+
                 let labels = (0..v.fields.len()).map(|i| format!("{}", i));
 
                 quote! {
-                    #ty_ident::#v_ident(#(#f_idents),*) => {
+                    Self::#v_ident(#(#f_idents),*) => {
                         #(
                             #inspect::inspect(#f_idents, ui, #labels);
                         )*
@@ -187,18 +189,20 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
                 }
             }
             ast::Style::Unit => quote! {
-                #ty_ident::#v_ident
+                Self::#v_ident => {
+                    ui.label_text(label, stringify!(#v_ident));
+                }
             },
         }
     });
 
     self::generate_inspect_impl(
         args,
-        quote! {{
+        quote! {
             match self {
                 #(#matchers,)*
             }
-        }},
+        },
     )
 }
 
@@ -214,7 +218,7 @@ fn inspect_unit_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> T
 
     self::generate_inspect_impl(
         args,
-        quote! {{
+        quote! {
             const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
 
             fn item_ix(variant: &#ty_ident) -> Option<usize> {
@@ -242,9 +246,9 @@ fn inspect_unit_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> T
                     let i = item_ix(v).unwrap();
                     std::borrow::Cow::Borrowed(imgui_names[i])
                 },
-            ) {
-                    *self = VARIANTS[ix].clone();
+                ) {
+                *self = VARIANTS[ix].clone();
             }
-        }},
+        },
     )
 }
