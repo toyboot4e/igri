@@ -1,6 +1,11 @@
 /*!
 ImGUI runtime inspector
 
+# Limitations
+
+`Inspect` is a foreign trait from your code. Foreign traits can only be implemented for types in
+your crate.
+
 * TODO: enum tag + field settings
 * TODO: delegate
 */
