@@ -2,17 +2,15 @@
 `paste::paste!` concats identifiers in declarative macro with `[< .. >]` syntax
 */
 
-// TODO: use const generics for array impl
+// TODO: support more types
 
-use std::{
-    borrow::Cow, collections::VecDeque, marker::PhantomData, num::NonZeroU32, ops::DerefMut,
-};
+use std::{borrow::Cow, collections::VecDeque, marker::PhantomData, num::*, ops::DerefMut};
 
 use imgui::Ui;
 
 use crate::Inspect;
 
-macro_rules! im_self {
+macro_rules! im_ui_method {
     ($ty:ident, $method:ident) => {
         impl Inspect for $ty {
             fn inspect(&mut self, ui: &$crate::imgui::Ui, label: &str) {
@@ -21,6 +19,8 @@ macro_rules! im_self {
         }
     };
 }
+
+im_ui_method!(bool, checkbox);
 
 macro_rules! im_string {
     ($ty:ident) => {
@@ -31,8 +31,6 @@ macro_rules! im_string {
         }
     };
 }
-
-im_self!(bool, checkbox);
 
 im_string!(str);
 im_string!(String);
@@ -50,10 +48,6 @@ macro_rules! im_input {
             }
         }
     };
-}
-
-impl<T> Inspect for [T; 0] {
-    fn inspect(&mut self, _ui: &Ui, _label: &str) {}
 }
 
 macro_rules! impl_array {
@@ -122,23 +116,32 @@ impl_tuple!(0, 1, 2, 3);
 
 // non-zero types
 
-impl Inspect for NonZeroU32 {
-    fn inspect(&mut self, ui: &Ui, label: &str) {
-        self.clone().get().inspect(ui, label);
-    }
-}
-
-// idiomatic types
-
-macro_rules! impl_ignore {
-    ($ty:ty) => {
-        impl<T> Inspect for $ty {
-            fn inspect(&mut self, _ui: &Ui, _label: &str) {}
+macro_rules! impl_non_zero {
+    ($ty:ident) => {
+        impl Inspect for $ty {
+            fn inspect(&mut self, ui: &Ui, label: &str) {
+                let mut x = self.clone().get();
+                x.inspect(ui, label);
+                if let Some(new_value) = $ty::new(x) {
+                    *self = new_value;
+                }
+            }
         }
+    };
+    ($($ty:ident),* $(,)?) => {
+        $(
+            impl_non_zero!($ty);
+        )*
     };
 }
 
-impl_ignore!(PhantomData<T>);
+impl_non_zero!(
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64,
+);
+
+impl<T> Inspect for [T; 0] {
+    fn inspect(&mut self, _ui: &Ui, _label: &str) {}
+}
 
 impl<T: Inspect> Inspect for Option<T> {
     fn inspect(&mut self, ui: &Ui, label: &str) {
@@ -146,6 +149,22 @@ impl<T: Inspect> Inspect for Option<T> {
             Some(x) => x.inspect(ui, label),
             None => ui.label_text(format!("{}", label), "None"),
         }
+    }
+}
+
+impl<T> Inspect for PhantomData<T> {
+    fn inspect(&mut self, _ui: &Ui, _label: &str) {}
+}
+
+impl<'a, T: Inspect + ?Sized + Clone> Inspect for Cow<'a, T> {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        self.to_mut().inspect(ui, label);
+    }
+}
+
+impl<T: Inspect + ?Sized> Inspect for Box<T> {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        self.deref_mut().inspect(ui, label);
     }
 }
 
@@ -160,17 +179,5 @@ impl Inspect for std::time::Duration {
     fn inspect(&mut self, ui: &Ui, label: &str) {
         let time = self.as_secs_f32();
         ui.label_text(format!("{}", label), format!("{}", time));
-    }
-}
-
-impl<'a, T: Inspect + ?Sized + Clone> Inspect for Cow<'a, T> {
-    fn inspect(&mut self, ui: &Ui, label: &str) {
-        self.to_mut().inspect(ui, label);
-    }
-}
-
-impl<T: Inspect + ?Sized> Inspect for Box<T> {
-    fn inspect(&mut self, ui: &Ui, label: &str) {
-        self.deref_mut().inspect(ui, label);
     }
 }
