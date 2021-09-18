@@ -30,24 +30,12 @@ pub fn nest<R, F: FnOnce() -> R>(ui: &Ui, label: &str, closure: F) -> Option<R> 
 /// Implements `Inspect` for an iterable type
 #[macro_export]
 macro_rules! impl_unit_enum {
-    ($D:ty, $ty:ident $(, $var:ident)* $(,)?) => {
+    ($ty:ident $(, $var:ident)* $(,)?) => {
         impl $crate::Inspect for $ty {
             fn inspect(&mut self, ui: &$crate::imgui::Ui, label: &str) {
                 $crate::unit_enum! {
                     ui, label, $($var),*
                 };
-            }
-        }
-    };
-}
-
-/// Implements `Inspect` for iterable type
-#[macro_export]
-macro_rules! impl_seq {
-    ($ty:ident) => {
-        impl<T: Inspect> Inspect for $ty<T> {
-            fn inspect(&mut self, ui: &Ui, label: &str) {
-                $crate::seq(self.iter_mut(), ui, label)
             }
         }
     };

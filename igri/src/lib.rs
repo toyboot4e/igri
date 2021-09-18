@@ -1,6 +1,16 @@
 /*!
 ImGUI runtime inspector
 
+```
+use igri::Inspect;
+
+#[derive(Inspect)]
+pub struct MyCoolStruct<T> {
+     xs: Vec<T>,
+}
+```
+
+
 # `dummy` feature
 
 We want to disable developer UI on release build. Enable `dummy` feature flag to turn off
