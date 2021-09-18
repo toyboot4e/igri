@@ -15,7 +15,7 @@ pub struct MyCoolStruct<T> {
 
 ## `dummy` feature
 
-We don't need developer UI on release. `#[derive(Inspect)]` expansion can optionally be turned off if `dumyy` feature flag is specified.
+We want to disable developer UI on release build. Enable `dummy` feature flag to turn off `#[derive(Inspect)]` expansion.
 
 > Be sure to out put other calls to `igri`, too!
 

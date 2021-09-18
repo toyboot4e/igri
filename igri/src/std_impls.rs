@@ -170,8 +170,17 @@ impl<T: Inspect + ?Sized> Inspect for Box<T> {
 
 // collections
 
-crate::impl_seq!(Vec);
-crate::impl_seq!(VecDeque);
+impl<T: Inspect> Inspect for Vec<T> {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        crate::inspect::seq(self.iter_mut(), ui, label);
+    }
+}
+
+impl<T: Inspect> Inspect for VecDeque<T> {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        crate::inspect::seq(self.iter_mut(), ui, label);
+    }
+}
 
 // more std types
 
