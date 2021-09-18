@@ -31,7 +31,7 @@ pub fn impl_inspect_as(x_ref: TokenStream2, as_: &String) -> TokenStream2 {
 pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
     let with = parse_str::<ExprPath>(with).expect("#[inspect(with = ..)] must refer to a path");
     quote! {
-        #with(x_ref, ui, label)
+        #with(#x_ref, ui, label)
     }
 }
 
