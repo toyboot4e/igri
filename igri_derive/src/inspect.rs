@@ -4,7 +4,6 @@ mod utils;
 use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
-use syn::*;
 
 use self::utils::{imgui_path, inspect_path};
 
@@ -30,44 +29,31 @@ fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) 
     let inspect = inspect_path();
 
     let inspect = if let Some(as_) = args.as_.as_ref() {
-        // #[inspect(as = "type")]
-
-        let as_ = parse_str::<Type>(as_).unwrap();
-        quote! {
-            let mut x: #as_ = (*self).into();
-            #inspect::inspect(&mut x, ui, label);
-            *self = x.into();
-        }
+        // case 1. #[inspect(as = "type")]
+        utils::impl_inspect_as(quote!(self), as_)
     } else if let Some(with) = args.with.as_ref() {
-        // #[inspect(with = "function")]
-
-        if let Ok(with) = parse_str::<ExprPath>(with) {
-            quote! {
-                #with(self, ui, label);
-            }
-        } else {
-            panic!("invalid #[inspect(with)] argument");
-        }
+        // case 2. #[inspect(with = "function")]
+        utils::impl_inspect_with(quote!(self), with)
     } else {
         // FIXME: more permissive transparent inspection
         let is_transparent =
             fields.style == ast::Style::Tuple && fields.iter().filter(|x| !x.skip).count() == 1;
         if is_transparent {
-            // delegate the inspection to the only field
+            // case 3. Transparent inspection
             quote! {
                 use #inspect;
                 self.0.inspect(ui, label);
             }
         } else if args.in_place {
-            // inspect each field
-            let field_inspectors = utils::struct_field_inspectors(&fields);
+            // case 4. Flatten
+            let field_inspectors = utils::field_inspectors(&fields);
 
             quote! {
                 #(#field_inspectors)*
             }
         } else {
-            // insert tree and inspect each field
-            let field_inspectors = utils::struct_field_inspectors(&fields);
+            // case 5. Nest tree node
+            let field_inspectors = utils::field_inspectors(&fields);
 
             let open = args.open;
             quote! {
@@ -90,10 +76,55 @@ fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) 
 
 fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
     if variants.iter().all(|v| v.fields.is_empty()) {
-        self::inspect_unit_enum(args, variants)
+        self::inspect_plain_enum(args, variants)
     } else {
         self::inspect_complex_enum(args, variants)
     }
+}
+
+/// Show menu to choose one of the variants
+fn inspect_plain_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
+    let ty_ident = &args.ident;
+
+    // List of `TypeName::Variant`
+    let variant_idents = variants
+        .iter()
+        .map(|v| format_ident!("{}", v.ident))
+        .collect::<Vec<_>>();
+
+    utils::generate_inspect_impl(
+        args,
+        quote! {
+            const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
+
+            fn variant_index(variant: &#ty_ident) -> Option<usize> {
+                VARIANTS
+                    .iter()
+                    .enumerate()
+                    .find_map(|(i, v)| if v == variant { Some(i) } else { None })
+            }
+
+            const fn variant_name(ix: usize) -> &'static str {
+                const NAMES: &'static [&'static str] = &[
+                    #(
+                        stringify!(Self::#variant_idents),
+                    )*
+                ];
+                NAMES[ix]
+            }
+
+            let mut ix = variant_index(self).unwrap();
+
+            if ui.combo(
+                label,
+                &mut ix,
+                VARIANTS,
+                |v| std::borrow::Cow::Borrowed(variant_name(variant_index(v).unwrap())),
+            ) {
+                *self = VARIANTS[ix].clone();
+            }
+        },
+    )
 }
 
 /// Inspect the variant's fields
@@ -157,53 +188,6 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
         quote! {
             match self {
                 #(#matchers,)*
-            }
-        },
-    )
-}
-
-/// Show menu to choose one of the variants
-fn inspect_unit_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
-    let ty_ident = &args.ident;
-
-    // create `[TypeName::A, TypeName::B]`
-    let variant_idents = variants
-        .iter()
-        .map(|v| format_ident!("{}", v.ident))
-        .collect::<Vec<_>>();
-
-    utils::generate_inspect_impl(
-        args,
-        quote! {
-            const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
-
-            fn item_ix(variant: &#ty_ident) -> Option<usize> {
-                VARIANTS
-                    .iter()
-                    .enumerate()
-                    .find_map(|(i, v)| if v == variant { Some(i) } else { None })
-            }
-
-            let imgui_names: &[&'static str] = &[
-                #(
-                    stringify!(Self::#variant_idents),
-                )*
-            ];
-
-            let mut ix = item_ix(self).unwrap();
-            let index = ix.clone();
-
-            if ui.combo(
-                label,
-                &mut ix,
-                VARIANTS,
-                // label function
-                |v| {
-                    let i = item_ix(v).unwrap();
-                    std::borrow::Cow::Borrowed(imgui_names[i])
-                },
-                ) {
-                *self = VARIANTS[ix].clone();
             }
         },
     )

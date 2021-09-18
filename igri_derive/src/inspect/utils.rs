@@ -15,8 +15,28 @@ pub fn inspect_path() -> TokenStream2 {
     quote!(igri::Inspect)
 }
 
+/// Code for `#[inspect(as = ..)]` in `inspect` function
+pub fn impl_inspect_as(x_ref: TokenStream2, as_: &String) -> TokenStream2 {
+    let inspect = inspect_path();
+
+    let as_ = parse_str::<Type>(as_).expect("#[inspect(as = ..)] must refer to a type");
+    quote! {
+        let mut bridge: #as_ = (*#x_ref).into();
+        #inspect::inspect(&mut bridge, ui, label);
+        *#x_ref = bridge.into();
+    }
+}
+
+/// Code for `#[inspect(with = ..)]` in `inspect` function
+pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
+    let with = parse_str::<ExprPath>(with).expect("#[inspect(with = ..)] must refer to a path");
+    quote! {
+        #with(x_ref, ui, label)
+    }
+}
+
 /// `self.field.inspect(ui, label);`
-pub fn struct_field_inspectors<'a>(
+pub fn field_inspectors<'a>(
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     let inspect = inspect_path();
@@ -33,7 +53,7 @@ pub fn struct_field_inspectors<'a>(
                     (quote!(#field_ident), format!("{}", field_ident))
                 }
                 ast::Style::Tuple => {
-                    // `self.0`, not `self.0usize` for example
+                    // Convert into `Index` type (e.g. `self.0`, not `self.0usize` for example)
                     let field_ident = Index::from(field_index);
                     (quote!(#field_ident), format!("{}", field_index))
                 }
@@ -57,7 +77,7 @@ pub fn struct_field_inspectors<'a>(
                         (#with)(&mut self.#field_ident);
                     }
                 } else {
-                    panic!("invalid #[inspect(with)] argument");
+                    panic!("invalid #[inspect(with)] argument; be sure to give path");
                 }
             } else {
                 // inspect the value as-is
