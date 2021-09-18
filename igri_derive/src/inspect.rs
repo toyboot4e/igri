@@ -6,11 +6,18 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
 use syn::*;
 
-use utils::{imgui_path, inspect_path};
+use self::utils::{imgui_path, inspect_path};
 
 /// Implements `Inspect`
 pub fn impl_inspect(ast: syn::DeriveInput) -> TokenStream2 {
+    // The derive input is parsed into `darling` types defined in `args` module.
+    // (`darling` lets us parse `#[attribute(..)]` in declartive style, while `syn` does not).
     let args = args::TypeArgs::from_derive_input(&ast).unwrap();
+
+    assert!(
+        !(args.with.is_some() && args.as_.is_some()),
+        "tried to use both #[inspect(with = ..)] and #[inspect(as = ..)]"
+    );
 
     match args.data {
         ast::Data::Struct(ref fields) => self::inspect_struct(&args, fields),
@@ -18,60 +25,9 @@ pub fn impl_inspect(ast: syn::DeriveInput) -> TokenStream2 {
     }
 }
 
-fn create_impl_generics(args: &args::TypeArgs) -> Generics {
-    let mut generics = args.generics.clone();
-    let inspect = inspect_path();
-
-    let clause = generics.make_where_clause();
-
-    if let Some(bounds) = args.bounds.as_ref() {
-        // add user's manually boundary
-        if !bounds.is_empty() {
-            clause.predicates.extend(
-                bounds
-                    .split(",")
-                    .map(|b| parse_str::<WherePredicate>(b).unwrap()),
-            );
-        }
-    } else {
-        // crate boundary for each field
-        clause.predicates.extend(
-            args.all_fields()
-                .iter()
-                .filter(|f| !f.skip)
-                .map(|f| &f.ty)
-                .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect }),
-        );
-    }
-
-    generics
-}
-
-/// Fill the `inspect` function body to derive `Inspect`
-fn generate_inspect_impl(args: &args::TypeArgs, inspect_body: TokenStream2) -> TokenStream2 {
-    let generics = self::create_impl_generics(args);
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    let ty_ident = &args.ident;
-
-    let imgui = imgui_path();
-    let inspect = inspect_path();
-
-    quote! {
-        impl #impl_generics #inspect for #ty_ident #ty_generics #where_clause
-        {
-            fn inspect(&mut self, ui: &#imgui::Ui, label: &str) {
-                #inspect_body
-            }
-        }
-    }
-}
-
 fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) -> TokenStream2 {
     let imgui = imgui_path();
     let inspect = inspect_path();
-
-    assert!(!(args.with.is_some() && args.as_.is_some()));
 
     let inspect = if let Some(as_) = args.as_.as_ref() {
         // #[inspect(as = "type")]
@@ -129,7 +85,7 @@ fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) 
         }
     };
 
-    self::generate_inspect_impl(args, inspect)
+    utils::generate_inspect_impl(args, inspect)
 }
 
 fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
@@ -196,7 +152,7 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
         }
     });
 
-    self::generate_inspect_impl(
+    utils::generate_inspect_impl(
         args,
         quote! {
             match self {
@@ -216,7 +172,7 @@ fn inspect_unit_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> T
         .map(|v| format_ident!("{}", v.ident))
         .collect::<Vec<_>>();
 
-    self::generate_inspect_impl(
+    utils::generate_inspect_impl(
         args,
         quote! {
             const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];

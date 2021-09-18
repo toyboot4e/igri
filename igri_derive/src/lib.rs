@@ -5,11 +5,11 @@ use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
 /**
-Derive `Inspect` trait. Requires `igri` to be in scope
+Derive macro for the `Inspect` trait. NOTE: `igri` must be in scope.
 
 # Attributes
 
-TODO
+TODO: doc
 */
 #[proc_macro_derive(Inspect, attributes(inspect))]
 pub fn inspect(input: TokenStream) -> TokenStream {
