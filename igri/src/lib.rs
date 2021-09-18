@@ -1,16 +1,20 @@
 /*!
 ImGUI runtime inspector
 
-# Limitations
-
-`Inspect` is a foreign trait from your code. Foreign traits can only be implemented for types in
-your crate.
-
 # `dummy` feature
 
-We don't need developer UI on release. `#[derive(Inspect)]` expansion can optionally be turned off if `dumyy` feature flag is specified.
+We want to disable developer UI on release build. Enable `dummy` feature flag to turn off
+`#[derive(Inspect)]` expansion.
 
-> Be sure to put other calls to `igri` in `#[cfg(debug_assertions)]` branch, too!
+> Be sure to opt out other calls to `igri`, too!
+
+# Limitations
+
+`Inspect` is a foreign trait from your code, which can only be implemented for types in your own
+crate. So types in your upstream frameworks does not implement `Inspect`.
+
+`igri` lets you tweak values via `imgui`, but it doesn't let you propagate the change (so for
+example, your game view is not synced to changes caused via `igri`).
 
 * TODO: enum tag + field settings
 * TODO: delegate
