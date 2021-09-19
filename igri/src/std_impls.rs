@@ -4,11 +4,22 @@
 
 // TODO: support more types
 
-use std::{borrow::Cow, collections::VecDeque, marker::PhantomData, num::*, ops::DerefMut};
+use std::{
+    borrow::Cow,
+    cell::Cell,
+    collections::{LinkedList, VecDeque},
+    marker::PhantomData,
+    num::*,
+    ops::DerefMut,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use imgui::Ui;
 
 use crate::Inspect;
+
+// primitives
 
 macro_rules! im_ui_method {
     ($ty:ident, $method:ident) => {
@@ -139,6 +150,8 @@ impl_non_zero!(
     NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64,
 );
 
+// None
+
 impl<T> Inspect for [T; 0] {
     fn inspect(&mut self, _ui: &Ui, _label: &str) {}
 }
@@ -156,7 +169,12 @@ impl<T> Inspect for PhantomData<T> {
     fn inspect(&mut self, _ui: &Ui, _label: &str) {}
 }
 
-impl<'a, T: Inspect + ?Sized + Clone> Inspect for Cow<'a, T> {
+// Wrappers
+
+impl<'a, T: std::borrow::ToOwned + ?Sized> Inspect for Cow<'a, T>
+where
+    T::Owned: Inspect,
+{
     fn inspect(&mut self, ui: &Ui, label: &str) {
         self.to_mut().inspect(ui, label);
     }
@@ -168,25 +186,52 @@ impl<T: Inspect + ?Sized> Inspect for Box<T> {
     }
 }
 
+impl<T: Inspect + Copy> Inspect for Cell<T> {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        let mut x = self.get();
+        x.inspect(ui, label);
+        self.set(x);
+    }
+}
+
 // collections
 
-impl<T: Inspect> Inspect for Vec<T> {
-    fn inspect(&mut self, ui: &Ui, label: &str) {
-        crate::inspect::seq(self.iter_mut(), ui, label);
-    }
+macro_rules! impl_seq {
+    ($ty:ident) => {
+        impl<T: Inspect> Inspect for $ty<T> {
+            fn inspect(&mut self, ui: &Ui, label: &str) {
+                crate::seq(self.iter_mut(), ui, label);
+            }
+        }
+    };
+    ($($ty:ident),* $(,)?) => {
+        $(
+            impl_seq!($ty);
+        )*
+    };
 }
 
-impl<T: Inspect> Inspect for VecDeque<T> {
-    fn inspect(&mut self, ui: &Ui, label: &str) {
-        crate::inspect::seq(self.iter_mut(), ui, label);
-    }
-}
+impl_seq!(Vec, VecDeque, LinkedList);
 
 // more std types
 
-impl Inspect for std::time::Duration {
+impl Inspect for Duration {
     fn inspect(&mut self, ui: &Ui, label: &str) {
         let time = self.as_secs_f32();
-        ui.label_text(format!("{}", label), format!("{}", time));
+        ui.label_text(label, format!("{}", time));
+    }
+}
+
+impl Inspect for Instant {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        ui.label_text(label, format!("{:?}", self));
+    }
+}
+
+impl Inspect for PathBuf {
+    fn inspect(&mut self, ui: &Ui, label: &str) {
+        let mut s = format!("{:?}", self);
+        ui.label_text(label, &mut s);
+        *self = PathBuf::from(s);
     }
 }
