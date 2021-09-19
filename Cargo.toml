@@ -2,4 +2,5 @@
 members = [
     "igri",
     "igri_derive",
+    "igri_demo",
 ]

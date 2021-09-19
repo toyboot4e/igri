@@ -66,6 +66,7 @@ macro_rules! impl_array {
         impl Inspect for [$ty; $N] {
             #[allow(warnings)]
             fn inspect(&mut self, ui: &$crate::imgui::Ui, label: &str) {
+                // FIXME: stable rust support
                 // use arraytools::ArrayTools;
                 let mut xs = self.map(|x| x as $as);
                 let label = format!("{}", label);

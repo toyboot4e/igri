@@ -1,0 +1,17 @@
+[package]
+name = "igri_demo"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glow = "0.10.0"
+glutin = "0.27.0"
+imgui = "0.8.0"
+imgui-glow-renderer = { version = "0.8.0", default_features = false, features = ["gl_extensions_support", "bind_vertex_array_support", "vertex_offset_support", "clip_origin_support", "bind_sampler_support", "polygon_mode_support", "primitive_restart_support",] }
+imgui-winit-support = "0.8.0"
+sdl2 = "0.34.5"
+
+igri = { path = "../igri" }
+anyhow = "1.0.44"

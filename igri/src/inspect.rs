@@ -23,6 +23,7 @@ pub fn seq<'a, T: Inspect + 'a>(xs: impl Iterator<Item = &'a mut T>, ui: &Ui, la
 /// Inspects a sequence of nested inspectable items
 pub fn nest<R, F: FnOnce() -> R>(ui: &Ui, label: &str, closure: F) -> Option<R> {
     imgui::TreeNode::new(label)
+        // .opened(true, imgui::Condition::FirstUseEver)
         .flags(imgui::TreeNodeFlags::OPEN_ON_ARROW | imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK)
         .build(ui, closure)
 }
