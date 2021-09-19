@@ -33,18 +33,13 @@ macro_rules! im_ui_method {
 
 im_ui_method!(bool, checkbox);
 
-macro_rules! im_string {
-    ($ty:ident) => {
-        impl Inspect for $ty {
-            fn inspect(&mut self, ui: &$crate::imgui::Ui, label: &str) {
-                let _changed = ui.label_text(label, format!("{}", self));
-            }
-        }
-    };
+impl Inspect for String {
+    fn inspect(&mut self, ui: &imgui::Ui, label: &str) {
+        // FIXME: Consider supporting multiline text
+        // https://docs.rs/imgui/latest/imgui/struct.InputTextMultiline.html
+        let _changed = ui.input_text(label, self).build();
+    }
 }
-
-im_string!(str);
-im_string!(String);
 
 // TODO: char?
 
@@ -161,6 +156,7 @@ impl<T: Inspect> Inspect for Option<T> {
     fn inspect(&mut self, ui: &Ui, label: &str) {
         match self {
             Some(x) => x.inspect(ui, label),
+            // FIXME: selectable enum
             None => ui.label_text(format!("{}", label), "None"),
         }
     }
@@ -232,7 +228,8 @@ impl Inspect for Instant {
 impl Inspect for PathBuf {
     fn inspect(&mut self, ui: &Ui, label: &str) {
         let mut s = format!("{:?}", self);
-        ui.label_text(label, &mut s);
-        *self = PathBuf::from(s);
+        if ui.input_text(label, &mut s).build() {
+            *self = PathBuf::from(s);
+        }
     }
 }

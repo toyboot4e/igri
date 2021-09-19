@@ -2,6 +2,7 @@ use imgui::Ui;
 
 /// ImGUI runtime inspection
 pub trait Inspect {
+    // mutable reference only
     fn inspect(&mut self, ui: &Ui, label: &str);
 }
 
