@@ -21,7 +21,7 @@ pub fn seq<'a, T: Inspect + 'a>(xs: impl Iterator<Item = &'a mut T>, ui: &Ui, la
     });
 }
 
-/// Inspects a sequence of nested inspectable items
+/// Standard method to nest a tree node
 pub fn nest<R, F: FnOnce() -> R>(ui: &Ui, label: &str, closure: F) -> Option<R> {
     imgui::TreeNode::new(label)
         // .opened(true, imgui::Condition::FirstUseEver)

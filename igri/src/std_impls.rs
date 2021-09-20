@@ -152,13 +152,36 @@ impl<T> Inspect for [T; 0] {
     fn inspect(&mut self, _ui: &Ui, _label: &str) {}
 }
 
-impl<T: Inspect> Inspect for Option<T> {
+impl<T: Inspect + Default> Inspect for Option<T> {
     fn inspect(&mut self, ui: &Ui, label: &str) {
-        match self {
-            Some(x) => x.inspect(ui, label),
-            // FIXME: selectable enum
-            None => ui.label_text(format!("{}", label), "None"),
-        }
+        const NAMES: &'static [&'static str] = &["None", "Some"];
+
+        crate::nest(ui, label, || {
+            // tag
+            let mut ix = if self.is_some() { 1 } else { 0 };
+
+            if ui.combo("tag", &mut ix, NAMES, |name| {
+                match name {
+                    x if *x == "None" => "None",
+                    x if *x == "Some" => "Some",
+                    _ => unreachable!(),
+                }
+                .into()
+            }) {
+                match ix {
+                    x if x == 0 => *self = Self::None,
+                    x if x == 1 => *self = Self::Some(Default::default()),
+                    _ => unreachable!(),
+                }
+            }
+
+            // fields
+            match self {
+                Self::Some(x) => x.inspect(ui, "data"),
+                Self::None => {}
+            }
+            // fields
+        });
     }
 }
 
