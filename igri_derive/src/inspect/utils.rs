@@ -88,6 +88,51 @@ pub fn field_inspectors<'a>(
         })
 }
 
+/// `<prefix>.field.inspect(ui, label);`
+pub fn enum_tag_selector<'a>(
+    ty_args: &args::TypeArgs,
+    ty_variants: &[args::VariantArgs],
+) -> TokenStream2 {
+    let ty_ident = &ty_args.ident;
+
+    // List of `TypeName::Variant`
+    let variant_idents = ty_variants
+        .iter()
+        .map(|v| format_ident!("{}", v.ident))
+        .collect::<Vec<_>>();
+
+    quote! {
+        const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
+
+        fn variant_index(variant: &#ty_ident) -> Option<usize> {
+            VARIANTS
+                .iter()
+                .enumerate()
+                .find_map(|(i, v)| if v == variant { Some(i) } else { None })
+        }
+
+        const fn variant_name(ix: usize) -> &'static str {
+            const NAMES: &'static [&'static str] = &[
+                #(
+                    stringify!(Self::#variant_idents),
+                )*
+            ];
+            NAMES[ix]
+        }
+
+        let mut ix = variant_index(self).unwrap();
+
+        if ui.combo(
+            label,
+            &mut ix,
+            VARIANTS,
+            |v| std::borrow::Cow::Borrowed(variant_name(variant_index(v).unwrap())),
+        ) {
+            *self = VARIANTS[ix].clone();
+        }
+    }
+}
+
 /// Fill the `inspect` function body to derive `Inspect`
 pub fn generate_inspect_impl(args: &args::TypeArgs, inspect_body: TokenStream2) -> TokenStream2 {
     let generics = self::create_impl_generics(args);

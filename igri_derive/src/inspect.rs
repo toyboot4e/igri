@@ -83,46 +83,13 @@ fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenS
 }
 
 /// Show menu to choose one of the variants
-fn inspect_plain_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
-    let ty_ident = &args.ident;
-
-    // List of `TypeName::Variant`
-    let variant_idents = variants
-        .iter()
-        .map(|v| format_ident!("{}", v.ident))
-        .collect::<Vec<_>>();
+fn inspect_plain_enum(ty_args: &args::TypeArgs, ty_variants: &[args::VariantArgs]) -> TokenStream2 {
+    let tag_selector = utils::enum_tag_selector(ty_args, ty_variants);
 
     utils::generate_inspect_impl(
-        args,
+        ty_args,
         quote! {
-            const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
-
-            fn variant_index(variant: &#ty_ident) -> Option<usize> {
-                VARIANTS
-                    .iter()
-                    .enumerate()
-                    .find_map(|(i, v)| if v == variant { Some(i) } else { None })
-            }
-
-            const fn variant_name(ix: usize) -> &'static str {
-                const NAMES: &'static [&'static str] = &[
-                    #(
-                        stringify!(Self::#variant_idents),
-                    )*
-                ];
-                NAMES[ix]
-            }
-
-            let mut ix = variant_index(self).unwrap();
-
-            if ui.combo(
-                label,
-                &mut ix,
-                VARIANTS,
-                |v| std::borrow::Cow::Borrowed(variant_name(variant_index(v).unwrap())),
-            ) {
-                *self = VARIANTS[ix].clone();
-            }
+            #tag_selector
         },
     )
 }
