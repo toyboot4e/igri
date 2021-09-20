@@ -10,7 +10,6 @@ pub struct MyCoolStruct<T> {
 }
 ```
 
-
 # `dummy` feature
 
 We want to disable developer UI on release build. Enable `dummy` feature flag to turn off
@@ -25,9 +24,6 @@ crate. So types in your upstream frameworks does not implement `Inspect`.
 
 `igri` lets you tweak values via `imgui`, but it doesn't let you propagate the change (so for
 example, your game view is not synced to changes caused via `igri`).
-
-* TODO: enum tag + field settings
-* TODO: delegate
 */
 
 #[cfg(not(feature = "dummy"))]
