@@ -134,33 +134,35 @@ pub fn enum_tag_selector<'a>(
 }
 
 /// Fill the `inspect` function body to derive `Inspect`
-pub fn generate_inspect_impl(args: &args::TypeArgs, inspect_body: TokenStream2) -> TokenStream2 {
-    let generics = self::create_impl_generics(args);
+pub fn impl_inspect(
+    ty_args: &args::TypeArgs,
+    generics: Generics,
+    inspect_body: TokenStream2,
+) -> TokenStream2 {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let ty_ident = &args.ident;
+    let ty_ident = &ty_args.ident;
 
     let imgui = imgui_path();
     let inspect = inspect_path();
 
-    quote! {
+    return quote! {
         impl #impl_generics #inspect for #ty_ident #ty_generics #where_clause
         {
             fn inspect(&mut self, ui: &#imgui::Ui, label: &str) {
                 #inspect_body
             }
         }
-    }
+    };
 }
 
-/// Creates `where` clause for `Inspect` impl
-fn create_impl_generics(args: &args::TypeArgs) -> Generics {
-    let mut generics = args.generics.clone();
+pub fn struct_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
+    let mut generics = ty_args.generics.clone();
     let inspect = inspect_path();
 
     let clause = generics.make_where_clause();
 
-    if let Some(bounds) = args.bounds.as_ref() {
+    if let Some(bounds) = ty_args.bounds.as_ref() {
         // add user's manual boundaries
         if !bounds.is_empty() {
             clause.predicates.extend(
@@ -172,11 +174,42 @@ fn create_impl_generics(args: &args::TypeArgs) -> Generics {
     } else {
         // add `Field: Inspect` for each fiel
         clause.predicates.extend(
-            args.all_fields()
+            ty_args
+                .all_fields()
                 .iter()
                 .filter(|f| !f.skip)
                 .map(|f| &f.ty)
                 .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect }),
+        );
+    }
+
+    generics
+}
+
+pub fn enum_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
+    let mut generics = ty_args.generics.clone();
+    let inspect = inspect_path();
+
+    let clause = generics.make_where_clause();
+
+    if let Some(bounds) = ty_args.bounds.as_ref() {
+        // add user's manual boundaries
+        if !bounds.is_empty() {
+            clause.predicates.extend(
+                bounds
+                    .split(",")
+                    .map(|b| parse_str::<WherePredicate>(b).unwrap()),
+            );
+        }
+    } else {
+        // add `Field: Inspect + Default` for each fiel
+        clause.predicates.extend(
+            ty_args
+                .all_fields()
+                .iter()
+                .filter(|f| !f.skip)
+                .map(|f| &f.ty)
+                .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect + Default }),
         );
     }
 

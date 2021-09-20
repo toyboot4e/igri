@@ -24,38 +24,41 @@ pub fn impl_inspect(ast: syn::DeriveInput) -> TokenStream2 {
     }
 }
 
-fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) -> TokenStream2 {
+fn inspect_struct(
+    ty_args: &args::TypeArgs,
+    field_args: &ast::Fields<args::FieldArgs>,
+) -> TokenStream2 {
     let imgui = imgui_path();
     let inspect = inspect_path();
 
-    let inspect = if let Some(as_) = args.as_.as_ref() {
+    let inspect = if let Some(as_) = ty_args.as_.as_ref() {
         // case 1. #[inspect(as = "type")]
         utils::impl_inspect_as(quote!(self), as_)
-    } else if let Some(with) = args.with.as_ref() {
+    } else if let Some(with) = ty_args.with.as_ref() {
         // case 2. #[inspect(with = "function")]
         utils::impl_inspect_with(quote!(self), with)
     } else {
         // FIXME: more permissive transparent inspection
-        let is_transparent =
-            fields.style == ast::Style::Tuple && fields.iter().filter(|x| !x.skip).count() == 1;
+        let is_transparent = field_args.style == ast::Style::Tuple
+            && field_args.iter().filter(|x| !x.skip).count() == 1;
         if is_transparent {
             // case 3. Transparent inspection
             quote! {
                 use #inspect;
                 self.0.inspect(ui, label);
             }
-        } else if args.in_place {
+        } else if ty_args.in_place {
             // case 4. Flatten
-            let field_inspectors = utils::field_inspectors(quote! { self }, &fields);
+            let field_inspectors = utils::field_inspectors(quote! { self }, &field_args);
 
             quote! {
                 #(#field_inspectors)*
             }
         } else {
             // case 5. Nest tree node
-            let field_inspectors = utils::field_inspectors(quote! { self }, &fields);
+            let field_inspectors = utils::field_inspectors(quote! { self }, &field_args);
 
-            let open = args.open;
+            let open = ty_args.open;
             quote! {
                 let _ = #imgui::TreeNode::new(label)
                     .flags(
@@ -71,7 +74,7 @@ fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) 
         }
     };
 
-    utils::generate_inspect_impl(args, inspect)
+    utils::impl_inspect(ty_args, utils::struct_inspect_generics(ty_args), inspect)
 }
 
 fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
@@ -86,8 +89,9 @@ fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenS
 fn inspect_plain_enum(ty_args: &args::TypeArgs, ty_variants: &[args::VariantArgs]) -> TokenStream2 {
     let tag_selector = utils::enum_tag_selector(ty_args, ty_variants);
 
-    utils::generate_inspect_impl(
+    utils::impl_inspect(
         ty_args,
+        utils::enum_inspect_generics(ty_args),
         quote! {
             #tag_selector
         },
@@ -95,10 +99,14 @@ fn inspect_plain_enum(ty_args: &args::TypeArgs, ty_variants: &[args::VariantArgs
 }
 
 /// Inspect the variant's fields
-fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
+fn inspect_complex_enum(
+    ty_args: &args::TypeArgs,
+    variant_args: &[args::VariantArgs],
+) -> TokenStream2 {
     let inspect = inspect_path();
 
-    let matchers = variants.iter().map(|v| {
+    // inspect variant fields
+    let matchers = variant_args.iter().map(|v| {
         let v_ident = &v.ident;
 
         match v.fields.style {
@@ -148,8 +156,9 @@ fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -
         }
     });
 
-    utils::generate_inspect_impl(
-        args,
+    utils::impl_inspect(
+        ty_args,
+        utils::enum_inspect_generics(ty_args),
         quote! {
             match self {
                 #(#matchers,)*
