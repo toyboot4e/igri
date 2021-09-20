@@ -16,14 +16,12 @@ pub fn inspect_path() -> TokenStream2 {
 }
 
 /// Code for `#[inspect(as = ..)]` in `inspect` function
-pub fn impl_inspect_as(x_ref: TokenStream2, as_: &String) -> TokenStream2 {
-    let inspect = inspect_path();
-
+pub fn impl_inspect_as(x: TokenStream2, as_: &String) -> TokenStream2 {
     let as_ = parse_str::<Type>(as_).expect("#[inspect(as = ..)] must refer to a type");
     quote! {
-        let mut bridge: #as_ = (*#x_ref).into();
+        let mut bridge: #as_ = (*#x).into();
         bridge.inspect(ui, label);
-        *#x_ref = bridge.into();
+        *#x = bridge.into();
     }
 }
 
@@ -64,23 +62,10 @@ pub fn field_inspectors<'a>(
 
             if let Some(as_) = field.as_.as_ref() {
                 // #[inspect(as = "type")]
-
-                let as_ = parse_str::<Type>(as_).unwrap();
-                quote! {
-                    let mut x: #as_ = (*#field_ident).into();
-                    x.inspect(ui, label);
-                    *#field_ident = x.into();
-                }
+                self::impl_inspect_as(quote! { &mut #field_ident }, as_)
             } else if let Some(with) = field.with.as_ref() {
                 // #[inspect(with = "function")]
-
-                if let Ok(with) = parse_str::<ExprPath>(with) {
-                    quote! {
-                        (#with)(&mut #field_ident);
-                    }
-                } else {
-                    panic!("invalid #[inspect(with)] argument; be sure to give path");
-                }
+                self::impl_inspect_with(quote! { &mut #field_ident }, with)
             } else {
                 // inspect the value as-is
                 quote! {

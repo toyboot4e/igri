@@ -17,7 +17,6 @@ use igri::Inspect;
 
 use igri_demo::ContextWrapper;
 
-pub struct GameData {}
 
 #[derive(Debug, Clone, PartialEq, Inspect)]
 pub struct Entity {
