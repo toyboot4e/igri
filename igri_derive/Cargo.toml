@@ -2,6 +2,8 @@
 name = "igri_derive"
 version = "0.1.0"
 edition = "2018"
+description = "Derive macro for `igri`"
+license = "MIT"
 
 [lib]
 proc-macro = true
