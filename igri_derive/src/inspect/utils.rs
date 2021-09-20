@@ -35,8 +35,9 @@ pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
     }
 }
 
-/// `self.field.inspect(ui, label);`
+/// `<prefix>.field.inspect(ui, label);`
 pub fn field_inspectors<'a>(
+    prefix: TokenStream2,
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     let inspect = inspect_path();
@@ -53,7 +54,6 @@ pub fn field_inspectors<'a>(
                     (quote!(#field_ident), format!("{}", field_ident))
                 }
                 ast::Style::Tuple => {
-                    // Convert into `Index` type (e.g. `self.0`, not `self.0usize` for example)
                     let field_ident = Index::from(field_index);
                     (quote!(#field_ident), format!("{}", field_index))
                 }
@@ -65,16 +65,16 @@ pub fn field_inspectors<'a>(
 
                 let as_ = parse_str::<Type>(as_).unwrap();
                 quote! {
-                    let mut x: #as_ = (*self.#field_ident).into();
+                    let mut x: #as_ = (*#prefix.#field_ident).into();
                     #inspect::inspect(&mut x, ui, label);
-                    *self.#field_ident = x.into();
+                    *#prefix.#field_ident = x.into();
                 }
             } else if let Some(with) = field.with.as_ref() {
                 // #[inspect(with = "function")]
 
                 if let Ok(with) = parse_str::<ExprPath>(with) {
                     quote! {
-                        (#with)(&mut self.#field_ident);
+                        (#with)(&mut #prefix.#field_ident);
                     }
                 } else {
                     panic!("invalid #[inspect(with)] argument; be sure to give path");
@@ -82,7 +82,7 @@ pub fn field_inspectors<'a>(
             } else {
                 // inspect the value as-is
                 quote! {
-                    self.#field_ident.inspect(ui, #label);
+                    #prefix.#field_ident.inspect(ui, #label);
                 }
             }
         })

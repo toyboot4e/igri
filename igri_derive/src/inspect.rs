@@ -46,14 +46,14 @@ fn inspect_struct(args: &args::TypeArgs, fields: &ast::Fields<args::FieldArgs>) 
             }
         } else if args.in_place {
             // case 4. Flatten
-            let field_inspectors = utils::field_inspectors(&fields);
+            let field_inspectors = utils::field_inspectors(quote! { self }, &fields);
 
             quote! {
                 #(#field_inspectors)*
             }
         } else {
             // case 5. Nest tree node
-            let field_inspectors = utils::field_inspectors(&fields);
+            let field_inspectors = utils::field_inspectors(quote! { self }, &fields);
 
             let open = args.open;
             quote! {
@@ -131,8 +131,6 @@ fn inspect_plain_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> 
 fn inspect_complex_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
     let inspect = inspect_path();
 
-    // TODO: select variant with combo + fields
-    // TODO: skip
     let matchers = variants.iter().map(|v| {
         let v_ident = &v.ident;
 
