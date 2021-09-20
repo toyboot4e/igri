@@ -10,6 +10,6 @@ dummy = ["igri_derive/dummy"]
 
 [dependencies]
 imgui = "0.8.0"
-igri_derive = { path = "../igri_derive" }
+igri_derive = { path = "../igri_derive", version = "0.1.0" }
 paste = "1.0.5"
 
