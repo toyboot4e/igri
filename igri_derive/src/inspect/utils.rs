@@ -135,7 +135,7 @@ pub fn enum_tag_selector<'a>(
         };
 
         if ui.combo_simple_string(
-            label,
+            "tag",
             &mut ix,
             NAMES,
         ) {
