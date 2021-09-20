@@ -29,6 +29,8 @@ pub fn nest<R, F: FnOnce() -> R>(ui: &Ui, label: &str, closure: F) -> Option<R> 
         .build(ui, closure)
 }
 
+// TODO: replace these macros with procedural macros
+
 /// Implements `Inspect` for an iterable type
 #[macro_export]
 macro_rules! impl_unit_enum {
@@ -72,7 +74,7 @@ macro_rules! unit_enum {
         let flags = $crate::imgui::TreeNodeFlags::OPEN_ON_ARROW |
             $crate::imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK;
 
-        if let Some(_) = $crate::imgui::TreeNode::new(label)
+        if let Some(()) = $crate::imgui::TreeNode::new(label)
             .flags(flags)
             .build(ui, || {
                 let mut buf = String::new();

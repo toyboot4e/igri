@@ -49,14 +49,16 @@ fn inspect_struct(
             }
         } else if ty_args.in_place {
             // case 4. Flatten
-            let field_inspectors = utils::field_inspectors(quote! { self }, &field_args);
+            let field_inspectors =
+                utils::field_inspectors(|field| quote! { self.#field }, &field_args);
 
             quote! {
                 #(#field_inspectors)*
             }
         } else {
             // case 5. Nest tree node
-            let field_inspectors = utils::field_inspectors(quote! { self }, &field_args);
+            let field_inspectors =
+                utils::field_inspectors(|field| quote! { self.#field }, &field_args);
 
             let open = ty_args.open;
             quote! {
@@ -77,33 +79,19 @@ fn inspect_struct(
     utils::impl_inspect(ty_args, utils::struct_inspect_generics(ty_args), inspect)
 }
 
-fn inspect_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
-    if variants.iter().all(|v| v.fields.is_empty()) {
-        self::inspect_plain_enum(args, variants)
-    } else {
-        self::inspect_complex_enum(args, variants)
+fn inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
+    let tag_selector = utils::enum_tag_selector(ty_args, variant_args);
+
+    // unit enum:
+    if variant_args.iter().all(|v| v.fields.is_empty()) {
+        return utils::impl_inspect(
+            ty_args,
+            utils::enum_inspect_generics(ty_args),
+            quote! {
+                #tag_selector
+            },
+        );
     }
-}
-
-/// Show menu to choose one of the variants
-fn inspect_plain_enum(ty_args: &args::TypeArgs, ty_variants: &[args::VariantArgs]) -> TokenStream2 {
-    let tag_selector = utils::enum_tag_selector(ty_args, ty_variants);
-
-    utils::impl_inspect(
-        ty_args,
-        utils::enum_inspect_generics(ty_args),
-        quote! {
-            #tag_selector
-        },
-    )
-}
-
-/// Inspect the variant's fields
-fn inspect_complex_enum(
-    ty_args: &args::TypeArgs,
-    variant_args: &[args::VariantArgs],
-) -> TokenStream2 {
-    let inspect = inspect_path();
 
     // inspect variant fields
     let matchers = variant_args.iter().map(|v| {
@@ -120,16 +108,11 @@ fn inspect_complex_enum(
                     })
                     .collect::<Vec<_>>();
 
-                let labels = v
-                    .fields
-                    .iter()
-                    .map(|f| format!("{}", f.ident.as_ref().unwrap()));
+                let field_inspectors = utils::field_inspectors(|field| field, &v.fields);
 
                 quote! {
                     Self::#v_ident { #(#f_idents),* } => {
-                        #(
-                            #inspect::inspect(#f_idents, ui, #labels);
-                        )*
+                        #(#field_inspectors)*
                     }
                 }
             }
@@ -138,31 +121,50 @@ fn inspect_complex_enum(
                     .map(|i| format_ident!("f{}", i))
                     .collect::<Vec<_>>();
 
-                let labels = (0..v.fields.len()).map(|i| format!("{}", i));
+                let field_inspectors = utils::field_inspectors(
+                    |field| {
+                        // TODO: does it work?
+                        quote! {
+                            f#field
+                        }
+                    },
+                    &v.fields,
+                );
 
                 quote! {
                     Self::#v_ident(#(#f_idents),*) => {
-                        #(
-                            #inspect::inspect(#f_idents, ui, #labels);
-                        )*
+                        #(#field_inspectors)*
                     }
                 }
             }
             ast::Style::Unit => quote! {
-                Self::#v_ident => {
-                    ui.label_text(label, stringify!(#v_ident));
-                }
+                Self::#v_ident => {}
             },
         }
     });
 
-    utils::impl_inspect(
-        ty_args,
-        utils::enum_inspect_generics(ty_args),
+    let imgui = utils::imgui_path();
+
+    let body = if variant_args.iter().all(|v| v.fields.is_empty()) {
+        // unit variants only:
         quote! {
-            match self {
-                #(#matchers,)*
-            }
-        },
-    )
+            #tag_selector
+        }
+    } else {
+        quote! {
+            if let Some(()) = #imgui::TreeNode::new(label)
+                .opened(true, #imgui::Condition::FirstUseEver)
+                .flags(#imgui::TreeNodeFlags::OPEN_ON_ARROW | #imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK)
+                .build(ui, || {
+                    #tag_selector
+
+                    match self {
+                        #(#matchers,)*
+                    }
+                })
+            {}
+        }
+    };
+
+    utils::impl_inspect(ty_args, utils::enum_inspect_generics(ty_args), body)
 }

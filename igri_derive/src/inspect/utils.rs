@@ -22,7 +22,7 @@ pub fn impl_inspect_as(x_ref: TokenStream2, as_: &String) -> TokenStream2 {
     let as_ = parse_str::<Type>(as_).expect("#[inspect(as = ..)] must refer to a type");
     quote! {
         let mut bridge: #as_ = (*#x_ref).into();
-        #inspect::inspect(&mut bridge, ui, label);
+        bridge.inspect(ui, label);
         *#x_ref = bridge.into();
     }
 }
@@ -35,9 +35,9 @@ pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
     }
 }
 
-/// `<prefix>.field.inspect(ui, label);`
+/// `<prefix>field.inspect(ui, label);`
 pub fn field_inspectors<'a>(
-    prefix: TokenStream2,
+    mut field_map: impl FnMut(TokenStream2) -> TokenStream2 + 'a,
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     let inspect = inspect_path();
@@ -57,24 +57,26 @@ pub fn field_inspectors<'a>(
                     let field_ident = Index::from(field_index);
                     (quote!(#field_ident), format!("{}", field_index))
                 }
-                ast::Style::Unit => unreachable!(),
+                ast::Style::Unit => return quote! {},
             };
+
+            let field_ident = field_map(field_ident);
 
             if let Some(as_) = field.as_.as_ref() {
                 // #[inspect(as = "type")]
 
                 let as_ = parse_str::<Type>(as_).unwrap();
                 quote! {
-                    let mut x: #as_ = (*#prefix.#field_ident).into();
-                    #inspect::inspect(&mut x, ui, label);
-                    *#prefix.#field_ident = x.into();
+                    let mut x: #as_ = (*#field_ident).into();
+                    x.inspect(ui, label);
+                    *#field_ident = x.into();
                 }
             } else if let Some(with) = field.with.as_ref() {
                 // #[inspect(with = "function")]
 
                 if let Ok(with) = parse_str::<ExprPath>(with) {
                     quote! {
-                        (#with)(&mut #prefix.#field_ident);
+                        (#with)(&mut #field_ident);
                     }
                 } else {
                     panic!("invalid #[inspect(with)] argument; be sure to give path");
@@ -82,7 +84,7 @@ pub fn field_inspectors<'a>(
             } else {
                 // inspect the value as-is
                 quote! {
-                    #prefix.#field_ident.inspect(ui, #label);
+                    #field_ident.inspect(ui, #label);
                 }
             }
         })
@@ -95,42 +97,108 @@ pub fn enum_tag_selector<'a>(
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
 
+    let ty_variants = ty_variants.iter().collect::<Vec<_>>();
+
     // List of `TypeName::Variant`
-    let variant_idents = ty_variants
+    let v_idents = ty_variants
         .iter()
         .map(|v| format_ident!("{}", v.ident))
         .collect::<Vec<_>>();
 
+    let indices = (0..v_idents.len()).map(Index::from).collect::<Vec<_>>();
+    let default_variants = self::default_variants(ty_args, &ty_variants).collect::<Vec<_>>();
+
+    let index_matchers = ty_variants.iter().enumerate().map(|(index, v)| {
+        let v_ident = &v.ident;
+
+        match v.fields.style {
+            ast::Style::Struct => {
+                quote! {
+                    #ty_ident::#v_ident { .. } => #index,
+                }
+            }
+            ast::Style::Tuple => {
+                quote! {
+                    #ty_ident::#v_ident(..) => #index,
+                }
+            }
+            ast::Style::Unit => {
+                quote! {
+                    #ty_ident::#v_ident => #index,
+                }
+            }
+        }
+    });
+
     quote! {
-        const VARIANTS: &[#ty_ident] = &[#(#ty_ident::#variant_idents,)*];
+        const NAMES: &'static [&'static str] = &[
+            #(
+                stringify!(#v_idents),
+            )*
+        ];
 
-        fn variant_index(variant: &#ty_ident) -> Option<usize> {
-            VARIANTS
-                .iter()
-                .enumerate()
-                .find_map(|(i, v)| if v == variant { Some(i) } else { None })
-        }
+        let mut ix = match self {
+            #(#index_matchers)*
+        };
 
-        const fn variant_name(ix: usize) -> &'static str {
-            const NAMES: &'static [&'static str] = &[
-                #(
-                    stringify!(Self::#variant_idents),
-                )*
-            ];
-            NAMES[ix]
-        }
-
-        let mut ix = variant_index(self).unwrap();
-
-        if ui.combo(
+        if ui.combo_simple_string(
             label,
             &mut ix,
-            VARIANTS,
-            |v| std::borrow::Cow::Borrowed(variant_name(variant_index(v).unwrap())),
+            NAMES,
         ) {
-            *self = VARIANTS[ix].clone();
+            *self = match ix {
+                #(
+                    _ if ix == #indices => #default_variants,
+                )*
+                _ => unreachable!(),
+            }
         }
     }
+}
+
+fn default_variants<'a>(
+    ty_args: &'a args::TypeArgs,
+    ty_variants: &'a [&'a args::VariantArgs],
+) -> impl Iterator<Item = TokenStream2> + 'a {
+    let ty_ident = &ty_args.ident;
+
+    ty_variants.iter().map(move |v| {
+        let v_ident = &v.ident;
+
+        let fields = v.fields.iter().collect::<Vec<_>>();
+
+        // default variant
+        match v.fields.style {
+            ast::Style::Struct => {
+                let field_idents = fields.iter().map(|f| {
+                    let ident = &f.ident;
+                    quote! { #ident }
+                });
+
+                quote! {
+                    #ty_ident::#v_ident {
+                        #(
+                            #field_idents: Default::default(),
+                        )*
+                    }
+                }
+            }
+            ast::Style::Tuple => {
+                let xs = (0..fields.len()).map(|_i| quote! { Default::default });
+
+                quote! {
+                    #ty_ident::#v_ident (
+                        #(#xs,)*
+                    )
+                }
+            }
+            ast::Style::Unit => {
+                quote! {
+                    #ty_ident::#v_ident
+                }
+            }
+        }
+    })
 }
 
 /// Fill the `inspect` function body to derive `Inspect`
@@ -202,7 +270,7 @@ pub fn enum_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
             );
         }
     } else {
-        // add `Field: Inspect + Default` for each fiel
+        // add `Field: Inspect + Default` for each field
         clause.predicates.extend(
             ty_args
                 .all_fields()
