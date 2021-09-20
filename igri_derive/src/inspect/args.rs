@@ -35,12 +35,18 @@ pub struct FieldArgs {
     pub ident: Option<Ident>,
     pub ty: Type,
     // ---
-    /// `#[inspect(skip)]`: skip inspection and `where Field: Inspect` boundary
+    /// `#[inspect(skip)]`
+    ///
+    /// Skip inspection and `where Field: Inspect` boundary
     #[darling(default)]
     pub skip: bool,
+    /// `#[inspect(as = <ty>)]`
+    ///
     /// Convert by value via `Into` trait
     #[darling(default, rename = "as")]
     pub as_: Option<String>,
+    /// `#[inspect(with = "<path>")]`
+    ///
     /// Casts the target before inspection
     #[darling(default)]
     pub with: Option<String>,

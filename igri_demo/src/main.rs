@@ -5,7 +5,8 @@ Don't expect a good getting started tutorial of windowing libraries,
 graphics API and ImGUI!
 */
 
-#![feature(trace_macros)]
+// #![feature(trace_macros)]
+// trace_macros!(true);
 
 use anyhow::*;
 
@@ -34,16 +35,12 @@ pub struct Entity {
     pub ty: EntityType,
 }
 
-trace_macros!(true);
-
 #[derive(Debug, Clone, PartialEq, Inspect)]
 pub enum EntityType {
     Player { items: Vec<f32> },
     Enemy { ai: usize, item: Option<f32> },
     Unknown,
 }
-
-trace_macros!(false);
 
 fn main() -> Result<()> {
     let event_loop = EventLoop::new();
