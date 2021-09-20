@@ -27,10 +27,20 @@ pub fn impl_inspect_as(x: TokenStream2, as_: &String) -> TokenStream2 {
 
 /// Code for `#[inspect(with = ..)]` in `inspect` function
 pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
-    let with = parse_str::<ExprPath>(with).expect("#[inspect(with = ..)] must refer to a path");
-    quote! {
-        #with(#x_ref, ui, label)
+    if let Ok(with) = parse_str::<ExprPath>(with) {
+        return quote! {
+            #with(#x_ref, ui, label);
+        };
     }
+
+    // TODO: closure?
+    // if let Ok(with) = parse_str::<ExprClosure>(with) {
+    //     return quote! {
+    //         (#with)(#x_ref, ui, label);
+    //     };
+    // }
+
+    panic!("invalid argument for #[inspect(with = ..)]");
 }
 
 /// `<prefix>field.inspect(ui, label);`
@@ -38,8 +48,6 @@ pub fn field_inspectors<'a>(
     mut field_map: impl FnMut(TokenStream2) -> TokenStream2 + 'a,
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
-    let inspect = inspect_path();
-
     field_args
         .fields
         .iter()

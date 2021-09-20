@@ -17,6 +17,13 @@ use igri::Inspect;
 
 use igri_demo::ContextWrapper;
 
+#[derive(Debug, Clone, PartialEq, Inspect)]
+#[inspect(with = "inspect_newtype")]
+pub struct NewType(u32);
+
+fn inspect_newtype(x: &mut NewType, ui: &imgui::Ui, label: &str) {
+    x.0.inspect(ui, label);
+}
 
 #[derive(Debug, Clone, PartialEq, Inspect)]
 pub struct Entity {
@@ -91,6 +98,8 @@ Ooooooooh
         },
     ];
 
+    let mut wrapper = NewType(100);
+
     igri_demo::run(event_loop, context_wrapper, move |ui| {
         ui.show_demo_window(&mut true);
 
@@ -99,7 +108,7 @@ Ooooooooh
             // semi-transparent window
             .bg_alpha(0.5)
             .build(ui, || {
-                // just inspect the entities
+                wrapper.inspect(ui, "new type wrapper");
                 entities.inspect(ui, "entities");
             });
     })
