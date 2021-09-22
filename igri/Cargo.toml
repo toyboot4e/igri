@@ -4,6 +4,7 @@ version = "0.1.1"
 edition = "2018"
 description = "ImGUI runtime inspector"
 license = "MIT"
+include = ["/src"]
 
 [features]
 dummy = ["igri_derive/dummy"]

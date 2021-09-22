@@ -45,8 +45,5 @@ pub use inspect::*;
 #[cfg(not(feature = "dummy"))]
 mod std_impls;
 
-#[cfg(test)]
-mod test;
-
 // Derive macro can have same name as trait
 pub use igri_derive::Inspect;
