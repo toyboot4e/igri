@@ -44,8 +44,9 @@ pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
 }
 
 /// `<prefix>field.inspect(ui, label);`
-pub fn field_inspectors<'a>(
-    mut field_map: impl FnMut(TokenStream2) -> TokenStream2 + 'a,
+pub fn field_inspectors<'a, T: ToTokens + 'a>(
+    // field token → field token
+    mut field_map: impl FnMut(TokenStream2) -> T + 'a,
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     field_args
@@ -177,7 +178,7 @@ fn default_variants<'a>(
                 }
             }
             ast::Style::Tuple => {
-                let xs = (0..fields.len()).map(|_i| quote! { Default::default });
+                let xs = (0..fields.len()).map(|_i| quote! { Default::default() });
 
                 quote! {
                     #ty_ident::#v_ident (
