@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
 /**
-Derive macro for the `Inspect` trait. NOTE: `igri` must be in scope.
+Derive macro for the `Inspect` trait. NOTE: `igri` must be in scope to use this macro.
 
 # Attributes
 

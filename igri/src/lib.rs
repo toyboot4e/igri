@@ -10,6 +10,12 @@ pub struct MyCoolStruct<T> {
 }
 ```
 
+# `enum` support
+
+Default `enum` inspector is implemented as a tag selector + variant field inspectors. On the tag
+change, the inspected value is replaced with the target variant with default values. If any of the
+variant field does not satisfy the `Default` trait, the `Inspect` trait derivation fails.
+
 # `dummy` feature
 
 We want to disable developer UI on release build. Enable `dummy` feature flag to turn off
@@ -20,10 +26,10 @@ We want to disable developer UI on release build. Enable `dummy` feature flag to
 # Limitations
 
 `Inspect` is a foreign trait from your code, which can only be implemented for types in your own
-crate. So types in your upstream frameworks does not implement `Inspect`.
+crate. So types upstream framework types do not implement `Inspect`.
 
 `igri` lets you tweak values via `imgui`, but it doesn't let you propagate the change (so for
-example, your game view is not synced to changes caused via `igri`).
+example, your game view is not synced to changes made with `igri`).
 */
 
 #[cfg(not(feature = "dummy"))]
