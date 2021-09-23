@@ -308,15 +308,27 @@ pub fn enum_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
             );
         }
     } else {
-        // add `Field: Inspect + Default` for each field
-        clause.predicates.extend(
-            ty_args
-                .all_fields()
-                .iter()
-                .filter(|f| !f.skip)
-                .map(|f| &f.ty)
-                .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect + Default }),
-        );
+        if ty_args.no_tag {
+            // add `Field: Inspect + Default` for each field
+            clause.predicates.extend(
+                ty_args
+                    .all_fields()
+                    .iter()
+                    .filter(|f| !f.skip)
+                    .map(|f| &f.ty)
+                    .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect  }),
+            );
+        } else {
+            // add `Field: Inspect + Default` for each field
+            clause.predicates.extend(
+                ty_args
+                    .all_fields()
+                    .iter()
+                    .filter(|f| !f.skip)
+                    .map(|f| &f.ty)
+                    .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect + Default }),
+            );
+        }
     }
 
     generics
