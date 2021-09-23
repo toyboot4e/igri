@@ -46,7 +46,7 @@ pub fn impl_inspect_with(x_ref: TokenStream2, with: &String) -> TokenStream2 {
 /// `<prefix>field.inspect(ui, label);`
 pub fn field_inspectors<'a, T: ToTokens + 'a>(
     // field token → field token
-    mut field_map: impl FnMut(TokenStream2) -> T + 'a,
+    mut to_field_mut: impl FnMut(TokenStream2) -> T + 'a,
     field_args: &'a ast::Fields<args::FieldArgs>,
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     field_args
@@ -67,18 +67,18 @@ pub fn field_inspectors<'a, T: ToTokens + 'a>(
                 ast::Style::Unit => return quote! {},
             };
 
-            let field_ident = field_map(field_ident);
+            let field_mut = to_field_mut(field_ident);
 
             if let Some(as_) = field.as_.as_ref() {
                 // #[inspect(as = "type")]
-                self::impl_inspect_as(quote! { &mut #field_ident }, as_)
+                self::impl_inspect_as(quote! { #field_mut }, as_)
             } else if let Some(with) = field.with.as_ref() {
                 // #[inspect(with = "function")]
-                self::impl_inspect_with(quote! { &mut #field_ident }, with)
+                self::impl_inspect_with(quote! { #field_mut }, with)
             } else {
                 // inspect the value as-is
                 quote! {
-                    #field_ident.inspect(ui, #label);
+                    #field_mut.inspect(ui, #label);
                 }
             }
         })

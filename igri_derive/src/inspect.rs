@@ -50,7 +50,7 @@ fn inspect_struct(
         } else if ty_args.in_place {
             // case 4. Flatten
             let field_inspectors =
-                utils::field_inspectors(|field| quote! { self.#field }, &field_args);
+                utils::field_inspectors(|field| quote! { (&mut self.#field) }, &field_args);
 
             quote! {
                 #(#field_inspectors)*
@@ -58,7 +58,8 @@ fn inspect_struct(
         } else {
             // case 5. Nest tree node
             let mut field_inspectors =
-                utils::field_inspectors(|field| quote! { self.#field }, &field_args).peekable();
+                utils::field_inspectors(|field| quote! { (&mut self.#field) }, &field_args)
+                    .peekable();
 
             if field_inspectors.peek().is_none() {
                 // unit struct, no field

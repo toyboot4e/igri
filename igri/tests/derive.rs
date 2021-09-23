@@ -7,16 +7,21 @@
 
 use igri::Inspect;
 
+fn f(x: &mut f32, ui: &imgui::Ui, label: &str) {
+    ui.label_text(label, format!("{}", x));
+}
+
 #[test]
 fn derive() {
     #[derive(Inspect)]
     pub struct Struct {
+        #[inspect(with = "f")]
         x: f32,
         y: u32,
     }
 
     #[derive(Inspect)]
-    pub struct Tuple1(f32);
+    pub struct Tuple1(#[inspect(with = "f")] f32);
 
     #[derive(Inspect)]
     pub struct Tuple2(f32, [u32; 2]);
@@ -34,7 +39,7 @@ fn derive() {
     #[derive(Inspect)]
     enum Wrapper {
         A(usize),
-        B(f32),
+        B(#[inspect(with = "f")] f32),
         C(String),
     }
 
