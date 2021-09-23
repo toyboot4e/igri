@@ -24,9 +24,12 @@ pub struct TypeArgs {
     /// Open tree by default
     #[darling(default)]
     pub open: bool,
-    /// Add type boundary manually
+    /// Add manual type boundary
     #[darling(default)]
     pub bounds: Option<String>,
+    /// (enum only) no tag selector, field inspectors only
+    #[darling(default)]
+    pub no_tag: bool,
 }
 
 #[derive(FromField, Clone)]

@@ -90,8 +90,6 @@ fn inspect_struct(
 }
 
 fn inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let tag_selector = utils::enum_tag_selector(ty_args, variant_args);
-
     // collect field inspectors
     let matchers = variant_args.iter().map(|v| {
         let v_ident = &v.ident;
@@ -145,26 +143,50 @@ fn inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) ->
         }
     });
 
-    let imgui = utils::imgui_path();
-
     let body = if variant_args.iter().all(|v| v.fields.is_empty()) {
-        // plain enum: tag selector only
+        // 1. plain enum: tag selector only
+        let tag_selector = utils::enum_tag_selector(ty_args, variant_args);
+
         quote! {
             #tag_selector
         }
     } else {
-        quote! {
-            if let Some(()) = #imgui::TreeNode::new(label)
-                .opened(true, #imgui::Condition::FirstUseEver)
-                .flags(#imgui::TreeNodeFlags::OPEN_ON_ARROW | #imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK)
-                .build(ui, || {
-                    #tag_selector
+        let imgui = utils::imgui_path();
 
-                    match self {
-                        #(#matchers,)*
-                    }
-                })
-            {}
+        if ty_args.no_tag {
+            // 2. no_tag: current tag + field inspectors
+            let current_tag = utils::current_enum_tag(ty_args, variant_args);
+
+            quote! {
+                if let Some(()) = #imgui::TreeNode::new(label)
+                    .opened(true, #imgui::Condition::FirstUseEver)
+                    .flags(#imgui::TreeNodeFlags::OPEN_ON_ARROW | #imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK)
+                    .build(ui, || {
+                        #current_tag
+
+                        match self {
+                            #(#matchers,)*
+                        }
+                    })
+                {}
+            }
+        } else {
+            // 3. default: tag selector + field inspectors
+            let tag_selector = utils::enum_tag_selector(ty_args, variant_args);
+
+            quote! {
+                if let Some(()) = #imgui::TreeNode::new(label)
+                    .opened(true, #imgui::Condition::FirstUseEver)
+                    .flags(#imgui::TreeNodeFlags::OPEN_ON_ARROW | #imgui::TreeNodeFlags::OPEN_ON_DOUBLE_CLICK)
+                    .build(ui, || {
+                        #tag_selector
+
+                        match self {
+                            #(#matchers,)*
+                        }
+                    })
+                {}
+            }
         }
     };
 

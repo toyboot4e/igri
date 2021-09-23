@@ -84,45 +84,39 @@ pub fn field_inspectors<'a, T: ToTokens + 'a>(
         })
 }
 
-/// `<prefix>.field.inspect(ui, label);`
+/// Read-only current enum tag
+pub fn current_enum_tag(
+    ty_args: &args::TypeArgs,
+    variant_args: &[args::VariantArgs],
+) -> TokenStream2 {
+    let (v_idents, _indices, index_matchers) = self::enum_map(ty_args, variant_args);
+
+    quote! {
+        let name = {
+            const NAMES: &'static [&'static str] = &[
+                #(
+                    stringify!(#v_idents),
+                )*
+            ];
+
+            let ix = match self {
+                #(#index_matchers)*
+            };
+
+            NAMES[ix]
+        };
+
+        ui.label_text(label, name);
+    }
+}
+
+/// Select enum variant with default values
 pub fn enum_tag_selector<'a>(
     ty_args: &args::TypeArgs,
-    ty_variants: &[args::VariantArgs],
+    variant_args: &[args::VariantArgs],
 ) -> TokenStream2 {
-    let ty_ident = &ty_args.ident;
-
-    let ty_variants = ty_variants.iter().collect::<Vec<_>>();
-
-    // List of `TypeName::Variant`
-    let v_idents = ty_variants
-        .iter()
-        .map(|v| format_ident!("{}", v.ident))
-        .collect::<Vec<_>>();
-
-    let indices = (0..v_idents.len()).map(Index::from).collect::<Vec<_>>();
-    let default_variants = self::default_variants(ty_args, &ty_variants).collect::<Vec<_>>();
-
-    let index_matchers = ty_variants.iter().enumerate().map(|(index, v)| {
-        let v_ident = &v.ident;
-
-        match v.fields.style {
-            ast::Style::Struct => {
-                quote! {
-                    #ty_ident::#v_ident { .. } => #index,
-                }
-            }
-            ast::Style::Tuple => {
-                quote! {
-                    #ty_ident::#v_ident(..) => #index,
-                }
-            }
-            ast::Style::Unit => {
-                quote! {
-                    #ty_ident::#v_ident => #index,
-                }
-            }
-        }
-    });
+    let (v_idents, indices, index_matchers) = self::enum_map(ty_args, variant_args);
+    let default_variants = self::default_variants(ty_args, &variant_args).collect::<Vec<_>>();
 
     quote! {
         const NAMES: &'static [&'static str] = &[
@@ -150,9 +144,59 @@ pub fn enum_tag_selector<'a>(
     }
 }
 
+/// → (v_idents, indices, matchers)
+fn enum_map(
+    ty_args: &args::TypeArgs,
+    variant_args: &[args::VariantArgs],
+) -> (Vec<Ident>, Vec<Index>, Vec<TokenStream2>) {
+    let ty_ident = &ty_args.ident;
+
+    let variant_args = variant_args.iter().collect::<Vec<_>>();
+
+    // List of `TypeName::Variant`
+    let v_idents = variant_args
+        .iter()
+        .map(|v| format_ident!("{}", v.ident))
+        .collect::<Vec<_>>();
+
+    let indices = (0..v_idents.len()).map(Index::from).collect::<Vec<_>>();
+
+    let matchers = variant_args
+        .iter()
+        .enumerate()
+        .map(|(index, v)| {
+            let v_ident = &v.ident;
+
+            match v.fields.style {
+                ast::Style::Struct => {
+                    quote! {
+                        #ty_ident::#v_ident { .. } => #index,
+                    }
+                }
+                ast::Style::Tuple => {
+                    quote! {
+                        #ty_ident::#v_ident(..) => #index,
+                    }
+                }
+                ast::Style::Unit => {
+                    quote! {
+                        #ty_ident::#v_ident => #index,
+                    }
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(v_idents.len(), matchers.len());
+
+    (v_idents, indices, matchers)
+}
+
+/// Default enum variant on tag switch
+// TODO: #[inspect(default = <default_variant>)]
 fn default_variants<'a>(
     ty_args: &'a args::TypeArgs,
-    ty_variants: &'a [&'a args::VariantArgs],
+    ty_variants: &'a [args::VariantArgs],
 ) -> impl Iterator<Item = TokenStream2> + 'a {
     let ty_ident = &ty_args.ident;
 
