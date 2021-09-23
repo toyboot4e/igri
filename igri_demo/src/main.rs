@@ -1,8 +1,7 @@
 /*!
 `igri` demo
 
-Don't expect a good getting started tutorial of windowing libraries,
-graphics API and ImGUI!
+Don't expect a good getting started tutorial of windowing libraries, graphics API and ImGUI!
 */
 
 // #![feature(trace_macros)]
@@ -24,6 +23,33 @@ pub struct NewType(u32);
 
 fn inspect_newtype(x: &mut NewType, ui: &imgui::Ui, label: &str) {
     x.0.inspect(ui, label);
+}
+
+#[derive(Debug, Clone, PartialEq, Inspect)]
+pub enum AttrDemoEnum {
+    Named {
+        x: f32,
+        #[inspect(skip)]
+        y: f32,
+        // #[with = "inspect_f32"]
+        z: f32,
+    },
+    Tuple(u32, #[inspect(skip)] f32, String),
+    Unit,
+}
+
+#[derive(Debug, Clone, PartialEq, Inspect)]
+pub struct AttrDemo {
+    newtype: NewType,
+    #[inspect(skip)]
+    hidden: u32,
+    #[inspect(with = "inspect_f32")]
+    manual: f32,
+    enums: Vec<AttrDemoEnum>,
+}
+
+fn inspect_f32(x: &mut f32, ui: &imgui::Ui, _label: &str) {
+    x.inspect(ui, "<manual inspect>");
 }
 
 #[derive(Debug, Clone, PartialEq, Inspect)]
@@ -95,7 +121,20 @@ Ooooooooh
         },
     ];
 
-    let mut wrapper = NewType(100);
+    let mut demo = AttrDemo {
+        newtype: NewType(100),
+        hidden: 100,
+        manual: 200.0,
+        enums: vec![
+            AttrDemoEnum::Named {
+                x: 0.0,
+                y: 10.0,
+                z: 100.0,
+            },
+            AttrDemoEnum::Tuple(0, 10.0, "tuple".to_string()),
+            AttrDemoEnum::Unit,
+        ],
+    };
 
     igri_demo::run(event_loop, context_wrapper, move |ui| {
         ui.show_demo_window(&mut true);
@@ -105,7 +144,7 @@ Ooooooooh
             // semi-transparent window
             .bg_alpha(0.5)
             .build(ui, || {
-                wrapper.inspect(ui, "new type wrapper");
+                demo.inspect(ui, "attribute demo");
                 entities.inspect(ui, "entities");
             });
     })

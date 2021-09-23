@@ -29,6 +29,15 @@ fn derive() {
     #[derive(Inspect)]
     pub struct Unit;
 
+    #[derive(Debug, Clone, PartialEq, Inspect)]
+    pub struct VirtualUnitA {
+        #[inspect(skip)]
+        hidden: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Inspect)]
+    pub struct VirtualUnitB(#[inspect(skip)] f32);
+
     #[derive(Inspect)]
     enum Plain {
         A,
