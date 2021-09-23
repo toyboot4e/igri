@@ -13,12 +13,16 @@ pub struct MyCoolStruct<T> {
 # `enum` support
 
 `#[derive(Inspect)]` for `enum` by default is implemented as a tag selector + variant field
-inspectors. On the tag change, the inspected value is replaced with the target variant with default
-values. If any of the variant field do not satisfy the `Default` trait, the `Inspect` trait
-derivation fails.
+inspectors. On the tag switch, the inspected value is replaced with the target variant with default
+values. **It requires every field to implement `Default`**.
 
-If you specify `#[inspect(no_tag)]` attribute, `Inspect` is implemented without tag switcher, and
-the `Default` implementation is not needed.
+If you specify `#[inspect(no_tag)]` attribute, the tag switcher is disabled and the `Default`
+implementation is not needed.
+
+# `Inspect` impls for `std` types
+
+`Option<T>::inspect` comes with the tag selector, which requires `T: Default` boundary. If it's too
+restrictive, you can override using `#[inspect(with = "<function>")]` atttribute.
 
 # Supported attributes (`#[inspect(attribute = value)]`)
 

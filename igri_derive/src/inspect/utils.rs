@@ -264,8 +264,6 @@ pub fn impl_inspect(
 
 pub fn struct_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
     let mut generics = ty_args.generics.clone();
-    let inspect = inspect_path();
-
     let clause = generics.make_where_clause();
 
     if let Some(bounds) = ty_args.bounds.as_ref() {
@@ -278,7 +276,9 @@ pub fn struct_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
             );
         }
     } else {
-        // add `Field: Inspect` for each fiel
+        let inspect = inspect_path();
+
+        // add `Field: Inspect` for each field
         clause.predicates.extend(
             ty_args
                 .all_fields()
