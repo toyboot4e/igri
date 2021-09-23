@@ -25,6 +25,13 @@ fn inspect_newtype(x: &mut NewType, ui: &imgui::Ui, label: &str) {
     x.0.inspect(ui, label);
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Uninspectable(String);
+
+fn inspect_uninspectable(x: &mut Uninspectable, ui: &imgui::Ui, label: &str) {
+    x.0.inspect(ui, "<manual inspect for non-Inspect>");
+}
+
 #[derive(Debug, Clone, PartialEq, Inspect)]
 pub enum AttrDemoEnum {
     Named {
@@ -40,11 +47,13 @@ pub enum AttrDemoEnum {
 
 #[derive(Debug, Clone, PartialEq, Inspect)]
 pub struct AttrDemo {
-    newtype: NewType,
     #[inspect(skip)]
     hidden: u32,
     #[inspect(with = "inspect_f32")]
     manual: f32,
+    newtype: NewType,
+    #[inspect(with = "inspect_uninspectable")]
+    uninspectable: Uninspectable,
     enums: Vec<AttrDemoEnum>,
 }
 
@@ -122,9 +131,10 @@ Ooooooooh
     ];
 
     let mut demo = AttrDemo {
-        newtype: NewType(100),
         hidden: 100,
         manual: 200.0,
+        newtype: NewType(100),
+        uninspectable: Uninspectable("Uninspectable".to_string()),
         enums: vec![
             AttrDemoEnum::Named {
                 x: 0.0,
