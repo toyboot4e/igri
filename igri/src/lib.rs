@@ -44,8 +44,8 @@ We want to disable developer UI on release build. Enable `dummy` feature flag to
 
 # Limitations
 
-`Inspect` is a foreign trait from your code, which can only be implemented for types in your own
-crate. So upstream framework types do not implement `Inspect`.
+`Inspect` is a foreign trait from your code, and it can only be implemented for types in your own
+crate. So types in your upstream framework might not implement `Inspect`.
 
 `igri` lets you tweak values via `imgui`, but it doesn't let you propagate the change. For example,
 your game view would not be synced to changes made with `igri`.
