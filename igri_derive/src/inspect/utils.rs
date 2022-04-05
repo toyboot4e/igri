@@ -283,7 +283,7 @@ pub fn struct_inspect_generics(ty_args: &args::TypeArgs) -> Generics {
             ty_args
                 .all_fields()
                 .iter()
-                .filter(|f| !f.skip && f.with.is_none())
+                .filter(|f| f.needs_boundary())
                 .map(|f| &f.ty)
                 .map::<WherePredicate, _>(|ty| parse_quote! { #ty: #inspect }),
         );

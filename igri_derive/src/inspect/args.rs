@@ -51,6 +51,7 @@ pub struct FieldArgs {
     /// `#[inspect(with = "<path>")]`
     ///
     /// Casts the target before inspection
+    // FIXME: It forces read-only inspection
     #[darling(default)]
     pub with: Option<String>,
 }
@@ -72,5 +73,11 @@ impl TypeArgs {
                 .flat_map(|variant| variant.fields.clone().into_iter())
                 .collect::<Vec<_>>(),
         }
+    }
+}
+
+impl FieldArgs {
+    pub fn needs_boundary(&self) -> bool {
+        !self.skip && self.as_.is_none() && self.with.is_none()
     }
 }
